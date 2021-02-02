@@ -4,103 +4,188 @@ using UnityEngine;
 using UnityEngine.UI;
 
 
+
+
 public class Player : MonoBehaviour
 {
-    //changed health to a float to be able to 
-    //change strength (and,inturn,damage, a percentage boost)
 
-    int Pebbles, Razorblades, Cigbutts;
-    float PlayerSpeed,PlayerStrength, PlayerHealth, PlayerDamage;
+    public Animator PlayerAnimator;
+    public int Pebbles, Razorblades, Cigbutts;
+    public float PlayerSpeed,PlayerStrength, PlayerHealth, PlayerDamage,DefaultSpeed;
+    float timeDamaged;
 
-    bool HSA,isAlive,bleeding;//herpisyphilaids
-
-    //will be set to active when player gets a new weapon or HSA,
-    //will be deactivated on click
-    public GameObject TutorialPanel;
-
-    public Text notification,Tutorial;
-    Slider HealthBar;
+    bool HSA, isAlive;
+    public bool Attacking;//herpisyphilaids
+    public GameObject TutorialPanel,AxeSpawn,Axe;
+    public Text Notification,PebblesCounter,Tutorial,BladeCounter,CigCounter;
+    public Slider HealthBar;
 
 
     void Start()
     {
         //load in File if applicable??? nah???
         HealthBar.value = HealthBar.maxValue;
-      
+        PlayerSpeed = 5;
+        PlayerStrength = 10;
+        PlayerHealth = 500;
+        PlayerDamage = 30;
+        isAlive = true;
+        HSA = false;
+        TutorialPanel.SetActive(false);
+        Pebbles = 05;
+        Razorblades = 05;
+        Cigbutts = 0;
     }
-
     // Update is called once per frame
     void Update()
     {
-        //gamestate only works if player is alive
+        this.transform.position = new Vector3(this.transform.position.x, this.transform.position.y, 0f);
         if (isAlive)
         {
             HealthBar.value = PlayerHealth;
-            Controls();
-            //deal bleeding damage if applicable
-            if (bleeding)
+            if (!PlayerAnimator.GetBool("isDamaged"))
             {
-                //after ten real life seconds turn off???
-                PlayerTakeDamage(4);
+                Controls();
             }
-            //half max health for a time
-            if (HSA)
+            else
             {
-                HealthBar.maxValue = HealthBar.maxValue / 2;
-                //slowly increase maxhealth up to its real max, somehow?
-            }
-            //check for upgrade, made a strength variable to upgrade all weapons at once
-            if (Cigbutts% 10==0)
-            {
-                PlayerStrength += 5;
-                ChangeDamage();
 
+                timeDamaged += Time.deltaTime;
+                if (timeDamaged >= .25f)
+                {
+                    PlayerAnimator.SetBool("isDamaged", false);
+                    timeDamaged = 0;
+                }
             }
+
         }
         else if (!isAlive)
         {
-            //playdeath animation
-            //open fail scene
+            Application.Quit();
         }
     }
-
-    //gotta set up ketboard controls
-    //would like to check for controller connection
     void Controls()
     {
 
-    }
-    private void OnTriggerEnter(Collider other)
-    {
-        //check tag of object to see if its a puddle
-        if()
+        //move left
+        if (Input.GetAxis("Horizontal") < 0)
         {
-            HSA = true;
+            this.transform.Translate(-transform.right * Time.deltaTime * PlayerSpeed, Space.World);
+            this.GetComponent<SpriteRenderer>().flipX = true;
+            PlayerAnimator.SetBool("isWalking", true);
+           
+
+        }
+        //stopwalking
+        if (Input.GetAxis("Horizontal") == 0)
+        {
+            PlayerAnimator.SetBool("isWalking", false);
+
         }
 
-        //check for enemy Tag
-        else if ()
+            //moveright
+        if (Input.GetAxis("Horizontal") > 0)
         {
-            PlayerTakeDamage(3);
-            //check for roach spit
-            if ()
-            {
-                Speed = Speed / 2;
-            }
-            //check for claws
-            else if ()
-            {
-                bleeding = true;
-                //reset bleeding timer?
-            }
+            this.transform.Translate(transform.right * Time.deltaTime * PlayerSpeed, Space.World);
+            this.GetComponent<SpriteRenderer>().flipX = false;
+            PlayerAnimator.SetBool("isWalking", true);
         }
 
+        //jump
+        if (Input.GetAxis("Jump") > 0)
+        {
+            this.transform.Translate(transform.up * Time.deltaTime * PlayerStrength);
+            PlayerAnimator.SetBool("isJumping", true);
+        }
+            //jab
+        if (Input.GetAxis("Jab") >0)
+        {
+            PlayerAnimator.SetBool("SyringAttack", true);
+            Attacking = true;
+        }
+        if (Input.GetAxis("Jab") == 0)
+        {
+            PlayerAnimator.SetBool("SyringAttack", false);
+            Attacking = false;
+        }
+
+        if (Input.GetAxis("Axe") > 0)
+        {
+            if (Razorblades > 0)
+            {
+                ThrowAxe();
+
+            }
+        }
+        if (Input.GetAxis("Axe") == 0)
+        {
+            PlayerAnimator.SetBool("RazorAttack", false);
+
+        }
+
+        //////trow pebble
+        ////if (Input.GetAxis("Pebble") > 0)
+        ////{
+        ////    if (Pebbles > 0)
+        ////    {
+        ////        PlayerAnimator.SetBool("PebbleAttack", true);
+        ////        Attacking = true;
+        ////    }
+        ////    // PlayerAnimator.SetBool("PebbleAttack", false);
+        ////    Attacking = false;
+        ////}
+        ////if (Input.GetAxis("Pebble") >= 0)
+        ////{
+        ////    PlayerAnimator.SetBool("PebbleAttack", false);
+        ////    Attacking = false;
+        ////}
+
+    }
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.tag == "ground")
+        {
+            PlayerAnimator.SetBool("isJumping", false);
+        }
+        if (collision.gameObject.tag == "Enemy")
+        {
+            Debug.Log("collison");
+            Debug.Log("attacking:" + Attacking);
+            if (Attacking)
+            {
+                Debug.Log("Attacking");
+                collision.gameObject.GetComponent<Enemy>().TakeDamage(PlayerDamage);
+            }
+        }
     }
 
-    //called from enemy script and on trigger enter to deal damage or modify the player health;
-    void PlayerTakeDamage(float attack)
+
+    void ThrowAxe()
     {
-        PlayerHealth = PlayerHealth - attack;
+        if (Razorblades > 0)
+        {
+            PlayerAnimator.SetBool("RazorAttack", true);
+            Transform toSpawn = AxeSpawn.transform;
+            GameObject axe = Instantiate(Axe, toSpawn);
+            Destroy(axe, 2f);
+            Razorblades--;
+        }
+    }
+
+    public void PlayerTakeDamage(float attack)
+    {
+       
+        if (!Attacking && !PlayerAnimator.GetBool("isDamaged"))
+        {
+            PlayerHealth = PlayerHealth - attack;
+            //PlayerAnimator.SetBool("isDamaged", false);
+        }
+        //check if player is dead
+        if(PlayerHealth < 0)
+        {
+            isAlive = false;
+        }
+        PlayerAnimator.SetBool("isDamaged", true);
     }
     //called to check for upgrade in player update
     void ChangeDamage()
